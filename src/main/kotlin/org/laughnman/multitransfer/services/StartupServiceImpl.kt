@@ -1,5 +1,6 @@
 package org.laughnman.multitransfer.services
 
+import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import mu.KotlinLogging
@@ -7,6 +8,7 @@ import org.laughnman.multitransfer.models.*
 import org.laughnman.multitransfer.models.transfer.*
 import org.laughnman.multitransfer.services.transfer.TransferDestinationService
 import picocli.CommandLine
+import java.nio.ByteBuffer
 import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -31,9 +33,11 @@ class StartupServiceImpl(private val fileSplitterService: FileSplitterService,
 	@OptIn(ExperimentalTime::class)
 	private fun CoroutineScope.buildJob(transferDestinationService: TransferDestinationService,
 											 metaInfo: MetaInfo,
-											 flow: Flow<TransferInfo>): Job {
+											 observable: Observable<ByteBuffer>): Job {
 		val job = launch {
 			logger.info { "Starting transfer job for file ${metaInfo.fileName}" }
+			val subscriber = transferDestinationService.buildSubscriber(metaInfo)
+			observable.subscribe(subscriber)
 			val elapsed = measureTime {
 				transferDestinationService.write(metaInfo, flow)
 			}
@@ -71,7 +75,7 @@ class StartupServiceImpl(private val fileSplitterService: FileSplitterService,
 
 			val processBuffer = ArrayList<Job>(transferCommand.parallelism)
 
-			transferSourceService.read().collect { (metaInfo, flow) ->
+			transferSourceService.buildObservableSequence().forEach { (metaInfo, observable) ->
 				// If the process buffer is full then loop until a job finishes.
 				while (processBuffer.size == transferCommand.parallelism) {
 					// Wait for a bit to see if a job frees up.
@@ -86,7 +90,7 @@ class StartupServiceImpl(private val fileSplitterService: FileSplitterService,
 					}
 				}
 
-				val job = buildJob(transferDestinationService, metaInfo, flow)
+				val job = buildJob(transferDestinationService, metaInfo, observable)
 
 				// Add the job to the process buffer.
 				processBuffer.add(job)

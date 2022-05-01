@@ -20,7 +20,8 @@ repositories {
 
 dependencies {
 	implementation(kotlin("stdlib"))
-	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-rx3:1.3.9")
 
 	implementation("io.insert-koin:koin-core:$koinVersion")
 	implementation("info.picocli:picocli:4.6.2")
